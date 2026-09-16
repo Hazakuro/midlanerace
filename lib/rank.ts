@@ -14,8 +14,9 @@ const TIER_ORDER: Record<RankTier, number> = {
   Challenger: 9,
 };
 
-// Within Iron through Diamond: IV < III < II < I.
-const DIVISION_ORDER: Record<string, number> = { IV: 1, III: 2, II: 3, I: 4 };
+// Leaderboard order requested by the race: IV, III, II, I.
+// Since the final sort is descending, IV must have the highest division score.
+const DIVISION_ORDER: Record<string, number> = { IV: 4, III: 3, II: 2, I: 1 };
 
 export function getRankTier(rank: string | null | undefined): RankTier {
   const value = String(rank || '').trim();
@@ -31,12 +32,13 @@ export function getRankScore(rank: string | null | undefined, lp = 0): number {
 
   const base = TIER_ORDER[tier];
 
-  // Master+ has no divisions, so LP is the only progression inside the tier.
+  // Master+ has no divisions, so more LP means a higher position.
   if (base >= TIER_ORDER.Master) {
     return base * 100000 + Math.max(0, Number(lp) || 0);
   }
 
-  // Iron -> Diamond: IV, III, II, I, then the next tier.
+  // For Iron through Diamond the requested leaderboard progression is:
+  // IV -> III -> II -> I.
   const divisionMatch = String(rank || '').match(/\b(IV|III|II|I)\b/i);
   const division = divisionMatch
     ? DIVISION_ORDER[divisionMatch[1].toUpperCase()] || 0
