@@ -1,0 +1,5 @@
+import { NextResponse } from 'next/server'; import { db } from '@/lib/db';
+export const dynamic='force-dynamic';
+export async function POST(req:Request,{params}:{params:Promise<{slug:string}>}){
+  try{const {slug}=await params; const body=await req.json(); const race=await db.race.findUnique({where:{slug}}); if(!race)return NextResponse.json({error:'Race not found'},{status:404}); const riotId=String(body.riotId||'').trim(); if(!riotId)return NextResponse.json({error:'riotId required'},{status:400}); const player=await db.player.upsert({where:{riotId},update:{region:String(body.region||race.region)},create:{riotId,region:String(body.region||race.region)}}); const participant=await db.raceParticipant.upsert({where:{raceId_playerId:{raceId:race.id,playerId:player.id}},update:{},create:{raceId:race.id,playerId:player.id},include:{player:true}}); return NextResponse.json(participant,{status:201});}catch(e){return NextResponse.json({error:e instanceof Error?e.message:'Could not add participant'},{status:400});}
+}

@@ -1,0 +1,111 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Race {
+  id                String             @id @default(cuid())
+  name              String
+  slug              String             @unique
+  region            String
+  startsAt          DateTime
+  endsAt            DateTime
+  status            RaceStatus         @default(DRAFT)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  participants      RaceParticipant[]
+  matches           RaceMatch[]
+  positionSnapshots PositionSnapshot[]
+}
+
+model Player {
+  id           String             @id @default(cuid())
+  riotId       String             @unique
+  region       String
+  puuid        String?
+  rank         String?
+  lp           Int                @default(0)
+  wins         Int                @default(0)
+  losses       Int                @default(0)
+  peakLp       Int?
+  updatedAt    DateTime           @updatedAt
+  participants RaceParticipant[]
+  snapshots    LpSnapshot[]
+  matches      RaceMatchPlayer[]
+  positions    PositionSnapshot[]
+}
+
+model RaceParticipant {
+  id       String   @id @default(cuid())
+  raceId   String
+  playerId String
+  joinedAt DateTime @default(now())
+  race     Race     @relation(fields: [raceId], references: [id], onDelete: Cascade)
+  player   Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([raceId, playerId])
+}
+
+model LpSnapshot {
+  id         String   @id @default(cuid())
+  playerId   String
+  raceId     String?
+  lp         Int
+  rank       String?
+  recordedAt DateTime @default(now())
+  player     Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+}
+
+model PositionSnapshot {
+  id         String   @id @default(cuid())
+  raceId     String
+  playerId   String
+  position   Int
+  lp         Int
+  recordedAt DateTime @default(now())
+  race       Race     @relation(fields: [raceId], references: [id], onDelete: Cascade)
+  player     Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@index([raceId, recordedAt])
+  @@index([playerId, recordedAt])
+}
+
+model RaceMatch {
+  id          String            @id @default(cuid())
+  raceId      String
+  matchId     String            @unique
+  gameStart   DateTime
+  gameEnd     DateTime?
+  queueId     Int
+  mapId       Int?
+  durationSec Int?
+  processedAt DateTime          @default(now())
+  race        Race              @relation(fields: [raceId], references: [id], onDelete: Cascade)
+  players     RaceMatchPlayer[]
+}
+
+model RaceMatchPlayer {
+  id        String    @id @default(cuid())
+  matchId   String
+  playerId  String
+  win       Boolean
+  champion  String?
+  kills     Int
+  deaths    Int
+  assists   Int
+  lpDelta   Int?
+  match     RaceMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  player    Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, playerId])
+}
+
+enum RaceStatus {
+  DRAFT
+  LIVE
+  FINISHED
+}

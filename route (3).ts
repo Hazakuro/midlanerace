@@ -1,0 +1,2 @@
+import {NextResponse} from 'next/server'; import {db} from '@/lib/db';
+export async function GET(_:Request,{params}:{params:Promise<{slug:string}>}){const {slug}=await params;const race=await db.race.findUnique({where:{slug}});if(!race)return NextResponse.json({error:'Race not found'},{status:404});const matches=await db.raceMatch.findMany({where:{raceId:race.id},include:{players:{include:{player:true}}},orderBy:{gameStart:'desc'}});return NextResponse.json(matches)}

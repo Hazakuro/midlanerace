@@ -1,0 +1,20 @@
+IMPORTANT — GitHub upload
+
+The repository MUST have these folders at its ROOT:
+  app/
+  lib/
+  prisma/
+
+Do NOT upload the files from app/ directly into the repository root.
+
+Correct:
+  midlanerace/app/page.tsx
+  midlanerace/app/layout.tsx
+  midlanerace/app/globals.css
+
+Incorrect:
+  midlanerace/page.tsx
+  midlanerace/layout.tsx
+  midlanerace/globals.css
+
+The Railway Root Directory must be empty (repository root).
