@@ -1,2 +1,0 @@
-import Link from 'next/link';
-export default async function PlayerPage({params}:{params:Promise<{riotId:string}>}){const {riotId}=await params;return <main className="wrap"><div className="nav"><Link className="brand" href="/">RACEHUB</Link></div><div className="card"><div className="eyebrow">PLAYER</div><h1>{decodeURIComponent(riotId)}</h1><p className="muted">Профиль готов к подключению Riot API.</p></div></main>}
