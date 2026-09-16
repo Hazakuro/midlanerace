@@ -15,21 +15,9 @@ type ParsedStats = {
   losses: number;
 };
 
-const TIERS = [
-  'Iron',
-  'Bronze',
-  'Silver',
-  'Gold',
-  'Platinum',
-  'Emerald',
-  'Diamond',
-  'Master',
-  'Grandmaster',
-  'Challenger',
-] as const;
-
-const DIVISIONS = ['IV', 'III', 'II', 'I'] as const;
-
+/**
+ * Декодируем HTML entities.
+ */
 function decodeHtml(input: string): string {
   return input
     .replace(/&nbsp;/gi, ' ')
@@ -43,149 +31,229 @@ function decodeHtml(input: string): string {
     .replace(/\\u003D/g, '=')
     .replace(/\\u0022/g, '"')
     .replace(/\\u0027/g, "'")
-    .replace(/\\n/g, ' ')
-    .replace(/\\r/g, ' ')
-    .replace(/\\t/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function stripHtml(input: string): string {
-  return decodeHtml(
-    input
-      .replace(/<script[^>]*>/gi, ' ')
-      .replace(/<\/script>/gi, ' ')
-      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
-      .replace(/<[^>]+>/g, ' ')
-  );
-}
-
-function normalizeText(input: string): string {
-  return input
-    .replace(/\\u002F/g, '/')
-    .replace(/\\u0026/g, '&')
-    .replace(/\\u003D/g, '=')
-    .replace(/\\"/g, '"')
-    .replace(/\\'/g, "'")
     .replace(/\s+/g, ' ')
     .trim();
 }
 
 /**
- * OP.GG currently renders rank information similar to:
- *
- * Platinum 1 80 LP
- * Diamond 4 38 LP
- * Master 123 LP
- *
- * and record information:
- *
- * 81W 77L
+ * Извлекает содержимое JSON-LD.
  */
-function parseStatsFromText(text: string): ParsedStats | null {
-  const normalized = normalizeText(text);
+function extractJsonLd(html: string): unknown[] {
+  const result: unknown[] = [];
 
-  /*
-   * First try the normal rendered text.
-   */
-  const rankRegex =
-    /\b(Iron|Bronze|Silver|Gold|Platinum|Emerald|Diamond)\s+(IV|III|II|I)\s+(\d+)\s*LP\b/i;
+  const regex =
+    /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
 
-  const highTierRegex =
-    /\b(Master|Grandmaster|Challenger)\s+(\d+)\s*LP\b/i;
+  let match: RegExpExecArray | null;
 
-  const recordRegex = /\b(\d+)\s*W\s+(\d+)\s*L\b/i;
+  while ((match = regex.exec(html)) !== null) {
+    const raw = match[1].trim();
 
-  const rankMatch =
-    normalized.match(rankRegex) ??
-    normalized.match(highTierRegex);
+    if (!raw) continue;
 
-  if (rankMatch) {
-    let rank: string;
-    let lp: number;
+    try {
+      result.push(JSON.parse(raw));
+    } catch {
+      // Иногда JSON содержит HTML entities.
+      try {
+        result.push(JSON.parse(decodeHtml(raw)));
+      } catch {
+        // Игнорируем поврежденный JSON-LD.
+      }
+    }
+  }
 
-    if (
-      ['Master', 'Grandmaster', 'Challenger'].includes(
-        rankMatch[1][0].toUpperCase() + rankMatch[1].slice(1).toLowerCase()
-      )
-    ) {
-      rank = rankMatch[1];
-      lp = Number(rankMatch[2]);
-    } else {
-      rank = `${rankMatch[1]} ${rankMatch[2]}`;
-      lp = Number(rankMatch[3]);
+  return result;
+}
+
+/**
+ * Рекурсивно ищет ProfilePage внутри JSON-LD.
+ */
+function findProfilePage(value: unknown): any | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = findProfilePage(item);
+
+      if (found) {
+        return found;
+      }
     }
 
-    const recordMatch = normalized.match(recordRegex);
+    return null;
+  }
 
-    return {
-      rank,
-      lp,
-      wins: recordMatch ? Number(recordMatch[1]) : 0,
-      losses: recordMatch ? Number(recordMatch[2]) : 0,
-    };
+  const object = value as Record<string, unknown>;
+
+  if (object['@type'] === 'ProfilePage') {
+    return object;
+  }
+
+  for (const child of Object.values(object)) {
+    const found = findProfilePage(child);
+
+    if (found) {
+      return found;
+    }
   }
 
   return null;
 }
 
 /**
- * OP.GG may put the actual profile payload inside JSON.
- * Search the raw response as well as the rendered text.
+ * Парсит описание OP.GG.
+ *
+ * Пример:
+ *
+ * Last Dance#slway is a League of Legends summoner on the EUW server.
+ * Last Dance#slway's current SOLORANKED rank is gold 3 Division 3 27 LP
+ * with 5 wins, 1 losses, and a 83% win rate.
  */
-function parseEmbeddedData(html: string): ParsedStats | null {
-  const candidates: string[] = [
-    html,
-    decodeHtml(html),
-    normalizeText(html),
-  ];
+function parseProfileDescription(description: string): ParsedStats | null {
+  const text = decodeHtml(description);
 
-  for (const candidate of candidates) {
-    const parsed = parseStatsFromText(candidate);
+  /**
+   * Обычные ранги:
+   *
+   * gold 3 Division 3 27 LP
+   * platinum 4 Division 4 61 LP
+   * diamond 1 Division 1 1 LP
+   * emerald 4 Division 4 7 LP
+   */
+  const normalRankRegex =
+    /\b(Iron|Bronze|Silver|Gold|Platinum|Emerald|Diamond)\s+([1-4])\s+Division\s+([1-4])\s+(\d+)\s*LP\b/i;
+
+  /**
+   * Master / Grandmaster / Challenger:
+   *
+   * Master 600 LP
+   */
+  const highRankRegex =
+    /\b(Master|Grandmaster|Challenger)\s+(\d+)\s*LP\b/i;
+
+  const normalMatch = text.match(normalRankRegex);
+
+  if (normalMatch) {
+    const tier = capitalize(normalMatch[1]);
+    const division = normalMatch[2];
+    const lp = Number(normalMatch[4]);
+
+    const record = text.match(
+      /\bwith\s+(\d+)\s+wins?,\s*(\d+)\s+losses?\b/i
+    );
+
+    return {
+      rank: `${tier} ${division}`,
+      lp,
+      wins: record ? Number(record[1]) : 0,
+      losses: record ? Number(record[2]) : 0,
+    };
+  }
+
+  const highMatch = text.match(highRankRegex);
+
+  if (highMatch) {
+    const rank = capitalize(highMatch[1]);
+    const lp = Number(highMatch[2]);
+
+    const record = text.match(
+      /\bwith\s+(\d+)\s+wins?,\s*(\d+)\s+losses?\b/i
+    );
+
+    return {
+      rank,
+      lp,
+      wins: record ? Number(record[1]) : 0,
+      losses: record ? Number(record[2]) : 0,
+    };
+  }
+
+  /**
+   * Если профиль реально Unranked.
+   */
+  if (
+    /\bcurrent\s+SOLORANKED\s+rank\s+is\s+unranked\b/i.test(text)
+  ) {
+    return {
+      rank: 'Unranked',
+      lp: 0,
+      wins: 0,
+      losses: 0,
+    };
+  }
+
+  return null;
+}
+
+function capitalize(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+}
+
+/**
+ * Основной парсер OP.GG.
+ */
+function parseOpggHtml(html: string): ParsedStats | null {
+  /**
+   * 1. Сначала пробуем JSON-LD.
+   * Это основной и наиболее стабильный источник.
+   */
+  const jsonLdBlocks = extractJsonLd(html);
+
+  for (const block of jsonLdBlocks) {
+    const profile = findProfilePage(block);
+
+    if (!profile) {
+      continue;
+    }
+
+    const description =
+      typeof profile.description === 'string'
+        ? profile.description
+        : '';
+
+    if (!description) {
+      continue;
+    }
+
+    const parsed = parseProfileDescription(description);
 
     if (parsed) {
       return parsed;
     }
   }
 
-  /*
-   * Additional fallback:
-   * OP.GG can encode rank fields separately in JSON.
+  /**
+   * 2. Запасной вариант:
+   * ищем описание напрямую в HTML.
    */
-  const tierMatch = html.match(
-    /"(?:tier|tierName|tier_name)"\s*:\s*"?(Iron|Bronze|Silver|Gold|Platinum|Emerald|Diamond|Master|Grandmaster|Challenger)"?/i
+  const decoded = decodeHtml(html);
+
+  const descriptionMatch = decoded.match(
+    /"description"\s*:\s*"([^"]*current[^"]*SOLORANKED[^"]*)"/i
   );
 
-  const divisionMatch = html.match(
-    /"(?:rank|division|tierRank|divisionName)"\s*:\s*"?(IV|III|II|I)"?/i
-  );
+  if (descriptionMatch) {
+    const parsed = parseProfileDescription(descriptionMatch[1]);
 
-  const lpMatch = html.match(
-    /"(?:leaguePoints|lp|league_points)"\s*:\s*(\d+)/i
-  );
-
-  const winsMatch = html.match(
-    /"(?:wins|win)"\s*:\s*(\d+)/i
-  );
-
-  const lossesMatch = html.match(
-    /"(?:losses|loss)"\s*:\s*(\d+)/i
-  );
-
-  if (tierMatch && lpMatch) {
-    const tier = tierMatch[1];
-
-    return {
-      rank: divisionMatch
-        ? `${tier} ${divisionMatch[1]}`
-        : tier,
-      lp: Number(lpMatch[1]),
-      wins: winsMatch ? Number(winsMatch[1]) : 0,
-      losses: lossesMatch ? Number(lossesMatch[1]) : 0,
-    };
+    if (parsed) {
+      return parsed;
+    }
   }
 
-  return null;
+  /**
+   * 3. Последний fallback — поиск по обычному тексту.
+   */
+  const text = decoded
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return parseProfileDescription(text);
 }
 
 function buildSlug(riotId: string): string {
@@ -256,6 +324,7 @@ function regionCode(region: string): string {
 async function fetchOpggPage(url: string): Promise<string> {
   const response = await fetch(url, {
     method: 'GET',
+
     headers: {
       'User-Agent':
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140 Safari/537.36',
@@ -289,51 +358,21 @@ export async function getOpggPlayer(
   const regionName = regionCode(region);
   const slug = buildSlug(riotId);
 
-  /*
-   * Current OP.GG profile format:
-   *
-   * https://op.gg/lol/summoners/euw/GameName-Tag
-   */
   const url = `https://op.gg/lol/summoners/${regionName}/${slug}`;
 
   console.log(`OP.GG request: ${url}`);
 
   const html = await fetchOpggPage(url);
 
-  /*
-   * Don't silently convert an unknown profile to
-   * "Unranked 0 LP".
-   *
-   * That was the reason the previous implementation
-   * incorrectly returned Unranked for every player.
-   */
-  const stats =
-    parseStatsFromText(stripHtml(html)) ??
-    parseEmbeddedData(html);
+  const stats = parseOpggHtml(html);
 
   if (!stats) {
-  const text = normalizeText(stripHtml(html));
-
-  console.log(`OP.GG DEBUG ${riotId}`);
-  console.log(`HTML length: ${html.length}`);
-  console.log(`Final URL: ${url}`);
-
-  const lpIndex = text.search(/\bLP\b/i);
-
-  if (lpIndex >= 0) {
-    console.log(
-      `TEXT AROUND LP: ${text.slice(
-        Math.max(0, lpIndex - 500),
-        Math.min(text.length, lpIndex + 500)
-      )}`
-    );
-  } else {
-    console.log('OP.GG DEBUG: LP not found');
-    console.log(`TEXT START: ${text.slice(0, 1000)}`);
+    throw new Error('OP.GG rank data not found');
   }
 
-  throw new Error('OP.GG rank data not found');
-}
+  console.log(
+    `OP.GG parsed ${riotId}: ${stats.rank} ${stats.lp} LP (${stats.wins}/${stats.losses})`
+  );
 
   return {
     riotId,
