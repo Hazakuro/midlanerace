@@ -104,6 +104,22 @@ model RaceMatchPlayer {
   @@unique([matchId, playerId])
 }
 
+model SiteImage {
+  id         String   @id @default(cuid())
+  name       String
+  placement  String
+  data       Bytes
+  mimeType   String
+  width      Int      @default(100)
+  opacity    Int      @default(100)
+  marginTop  Int      @default(0)
+  marginBottom Int    @default(12)
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  @@index([placement, enabled])
+}
+
 enum RaceStatus {
   DRAFT
   LIVE
