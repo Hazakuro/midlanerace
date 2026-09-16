@@ -11,8 +11,10 @@ export default function RaceLive({slug}:{slug:string}){
  const placeBadge=(position:number)=>position===1?'🏆':position===2?'🥈':position===3?'🥉':position;
  return <main className="wrap leaderboardPage">
   {loading&&!data?<div className="card">Загрузка leaderboard…</div>:error?<div className="card error">{error}</div>:<>
-   <header className="leaderboardHeader">
-    <div><div className="eyebrow">LEAGUE OF LEGENDS · EUW</div><h1>{data.race.name}</h1><p className="muted">Leaderboard · автообновление раз в час</p></div>
+   <header className="leaderboardHeader heroHeader">
+    <div className="heroSide heroYasuo" aria-hidden="true"><div className="championGlow"/><div className="championSilhouette">⚔</div><span>YASUO</span></div>
+    <div className="heroTitle"><div className="eyebrow">LEAGUE OF LEGENDS · EUW</div><h1>Midlane Arena</h1><p className="muted">Leaderboard · автообновление раз в час</p></div>
+    <div className="heroSide heroYone" aria-hidden="true"><div className="championGlow"/><div className="championSilhouette">◈</div><span>YONE</span></div>
    </header>
    <div className="stats"><div><span>Участники</span><b>{data.players.length}</b></div><div><span>Лидер</span><b>{data.players[0]?`${data.players[0].rank} · ${data.players[0].lp} LP`:'—'}</b></div><div><span>Всего матчей</span><b>{data.players.reduce((a:number,p:any)=>a+p.totalMatches,0)}</b></div><div><span>Обновлено</span><b>{lastUpdate?new Date(lastUpdate).toLocaleTimeString('ru-RU'):'—'}</b></div></div>
    <section className="card tableCard">
