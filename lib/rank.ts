@@ -16,12 +16,12 @@ const TIER_ORDER: Record<RankTier, number> = {
 
 // Requested leaderboard order inside each divided tier:
 // IV -> III -> II -> I.
-// Sorting is descending, so IV gets the largest division value.
+// Sorting is descending, so I gets the largest division value.
 const DIVISION_ORDER: Record<string, number> = {
-  IV: 4,
-  III: 3,
-  II: 2,
-  I: 1,
+  IV: 1,
+  III: 2,
+  II: 3,
+  I: 4,
 };
 
 export function getRankTier(rank: string | null | undefined): RankTier {
