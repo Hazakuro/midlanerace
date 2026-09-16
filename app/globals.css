@@ -6,3 +6,12 @@
 .rankCell .rankMain{display:block!important;max-width:100%!important;min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
 .rankCell span{margin-left:0!important}
 @media(max-width:900px){.rankCell span{margin-left:0!important}.rankCell .rankInfo{max-width:100%!important}.rankCell .rankMain{max-width:100%!important}}
+
+/* Sponsor treatment: gold branding with coin accents. */
+.sponsorBanner{position:relative;border-color:#b88b32;background:linear-gradient(135deg,#1c1305,#0a1119 52%,#211605);box-shadow:inset 0 0 22px #d6a83a20,0 0 18px #d6a83a24,0 0 0 1px #6d522744}
+.sponsorBanner span{color:#c8a95e}
+.sponsorBanner strong{color:#ffd76a;text-shadow:0 0 10px #d9a52a88,0 0 20px #d9a52a44}
+.sponsorBanner:before,.sponsorBanner:after{content:'🪙';position:absolute;top:50%;transform:translateY(-50%);font-size:18px;line-height:1;filter:drop-shadow(0 0 7px #d9a52a88);animation:coinFloat 2.6s ease-in-out infinite}
+.sponsorBanner:before{left:14px}
+.sponsorBanner:after{right:14px;animation-delay:-1.3s}
+@keyframes coinFloat{0%,100%{transform:translateY(-50%) rotate(-8deg)}50%{transform:translateY(calc(-50% - 3px)) rotate(8deg)}}
