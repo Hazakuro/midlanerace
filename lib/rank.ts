@@ -14,13 +14,17 @@ const TIER_ORDER: Record<RankTier, number> = {
   Challenger: 9,
 };
 
-// League division order from lowest to highest: IV -> III -> II -> I.
-// The leaderboard sorts scores descending, so I must have the largest value.
+// League divisions from lowest to highest: IV -> III -> II -> I.
+// OP.GG data can contain either Roman numerals or Arabic numerals.
 const DIVISION_ORDER: Record<string, number> = {
   IV: 1,
+  '4': 1,
   III: 2,
+  '3': 2,
   II: 3,
+  '2': 3,
   I: 4,
+  '1': 4,
 };
 
 export function getRankTier(rank: string | null | undefined): RankTier {
@@ -31,26 +35,27 @@ export function getRankTier(rank: string | null | undefined): RankTier {
   return (Object.keys(TIER_ORDER) as RankTier[]).find(item => item.toLowerCase() === tier) || 'Unranked';
 }
 
+function getDivisionValue(rank: string | null | undefined): number {
+  const match = String(rank || '').match(/\b(IV|III|II|I|4|3|2|1)\b/i);
+  if (!match) return 0;
+  return DIVISION_ORDER[match[1].toUpperCase()] || 0;
+}
+
 export function getRankScore(rank: string | null | undefined, lp = 0): number {
   const tier = getRankTier(rank);
   if (tier === 'Unranked') return -1;
 
   const base = TIER_ORDER[tier];
+  const safeLp = Math.max(0, Number(lp) || 0);
 
-  // Master / Grandmaster / Challenger have no divisions:
-  // more LP always means a higher place inside the tier.
+  // Master / Grandmaster / Challenger have no divisions: more LP is higher.
   if (base >= TIER_ORDER.Master) {
-    return base * 1_000_000 + Math.max(0, Number(lp) || 0);
+    return base * 1_000_000 + safeLp;
   }
 
-  const divisionMatch = String(rank || '').match(/\b(IV|III|II|I)\b/i);
-  const division = divisionMatch
-    ? DIVISION_ORDER[divisionMatch[1].toUpperCase()] || 0
-    : 0;
-
-  // Division weight is larger than any possible LP value, so division
-  // determines the order before LP within the same division.
-  return base * 1_000_000 + division * 10_000 + Math.max(0, Number(lp) || 0);
+  // For divided tiers the division always outranks LP:
+  // I > II > III > IV, then LP within the same division.
+  return base * 1_000_000 + getDivisionValue(rank) * 10_000 + safeLp;
 }
 
 export function sortPlayersByRank<T extends { rank?: string | null; lp?: number }>(players: T[]): T[] {
