@@ -4,15 +4,15 @@ const iconBase = 'https://leagueoflegends.fandom.com/wiki/Special:FilePath/';
 
 const iconFiles: Record<string, string> = {
   Iron: 'Season 2023 - Iron.png',
-  Bronze: 'Season 2023 - Bronze.png',
-  Silver: 'Season 2023 - Silver.png',
   Gold: 'Season 2023 - Gold.png',
-  Platinum: 'Season 2023 - Platinum.png',
-  Emerald: 'Season 2023 - Emerald.png',
-  Diamond: 'Season 2023 - Diamond.png',
-  Master: 'Season 2023 - Master.png',
-  Grandmaster: 'Season 2023 - Grandmaster.png',
-  Challenger: 'Season 2023 - Challenger.png',
+  Bronze: '/ranks/bronze.png',
+  Silver: '/ranks/silver.png',
+  Platinum: '/ranks/platinum.png',
+  Emerald: '/ranks/emerald.png',
+  Diamond: '/ranks/diamond.png',
+  Master: '/ranks/master.png',
+  Grandmaster: '/ranks/grandmaster.png',
+  Challenger: '/ranks/challenger.png',
 };
 
 export function RankIcon({ rank, size = 38 }: { rank: string | null | undefined; size?: number }) {
@@ -23,9 +23,11 @@ export function RankIcon({ rank, size = 38 }: { rank: string | null | undefined;
   const file = iconFiles[tier];
   if (!file) return null;
 
+  const src = file.startsWith('/') ? file : `${iconBase}${encodeURIComponent(file)}`;
+
   return (
     <img
-      src={`${iconBase}${encodeURIComponent(file)}`}
+      src={src}
       width={size}
       height={size}
       alt={`${tier} rank`}
