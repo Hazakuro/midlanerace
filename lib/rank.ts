@@ -14,9 +14,8 @@ const TIER_ORDER: Record<RankTier, number> = {
   Challenger: 9,
 };
 
-// Requested leaderboard order inside each divided tier:
-// IV -> III -> II -> I.
-// Sorting is descending, so I gets the largest division value.
+// League division order from lowest to highest: IV -> III -> II -> I.
+// The leaderboard sorts scores descending, so I must have the largest value.
 const DIVISION_ORDER: Record<string, number> = {
   IV: 1,
   III: 2,
@@ -49,8 +48,8 @@ export function getRankScore(rank: string | null | undefined, lp = 0): number {
     ? DIVISION_ORDER[divisionMatch[1].toUpperCase()] || 0
     : 0;
 
-  // Division weight is larger than any possible LP value, so the order is
-  // always IV -> III -> II -> I regardless of LP.
+  // Division weight is larger than any possible LP value, so division
+  // determines the order before LP within the same division.
   return base * 1_000_000 + division * 10_000 + Math.max(0, Number(lp) || 0);
 }
 
