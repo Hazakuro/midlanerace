@@ -1,10 +1,10 @@
 import {getRankTier} from '@/lib/rank';
 
-const iconBase = 'https://leagueoflegends.fandom.com/wiki/Special:FilePath/';
+const iconBase = 'https://static.wikia.nocookie.net/leagueoflegends/images/';
 
 const iconFiles: Record<string, string> = {
-  Iron: 'Season 2023 - Iron.png',
-  Gold: 'Season 2023 - Gold.png',
+  Iron: 'https://leagueoflegends.fandom.com/wiki/Special:FilePath/Season%202023%20-%20Iron.png',
+  Gold: 'https://leagueoflegends.fandom.com/wiki/Special:FilePath/Season%202023%20-%20Gold.png',
   Bronze: '/ranks/bronze.png',
   Silver: '/ranks/silver.png',
   Platinum: '/ranks/platinum.png',
@@ -15,15 +15,25 @@ const iconFiles: Record<string, string> = {
   Challenger: '/ranks/challenger.png',
 };
 
+const fallbackFiles: Record<string, string> = {
+  Bronze: `${iconBase}c/cb/Season_2023_-_Bronze.png/revision/latest/scale-to-width-down/130?cb=20231007195824`,
+  Silver: `${iconBase}c/c4/Season_2023_-_Silver.png/revision/latest/scale-to-width-down/130?cb=20231007195834`,
+  Platinum: `${iconBase}b/bd/Season_2023_-_Platinum.png/revision/latest/scale-to-width-down/130?cb=20231007195833`,
+  Emerald: `${iconBase}4/4b/Season_2023_-_Emerald.png/revision/latest/scale-to-width-down/130?cb=20231007195827`,
+  Diamond: `${iconBase}3/37/Season_2023_-_Diamond.png/revision/latest/scale-to-width-down/130?cb=20231007195826`,
+  Master: `${iconBase}d/d5/Season_2023_-_Master.png/revision/latest/scale-to-width-down/130?cb=20231007195832`,
+  Grandmaster: `${iconBase}6/64/Season_2023_-_Grandmaster.png/revision/latest/scale-to-width-down/130?cb=20231007195830`,
+  Challenger: `${iconBase}1/14/Season_2023_-_Challenger.png/revision/latest/scale-to-width-down/130?cb=20231007195825`,
+};
+
 export function RankIcon({ rank, size = 38 }: { rank: string | null | undefined; size?: number }) {
   const tier = getRankTier(rank);
 
   if (tier === 'Unranked') return null;
 
-  const file = iconFiles[tier];
-  if (!file) return null;
-
-  const src = file.startsWith('/') ? file : `${iconBase}${encodeURIComponent(file)}`;
+  const src = iconFiles[tier];
+  if (!src) return null;
+  const fallback = fallbackFiles[tier];
 
   return (
     <img
@@ -32,6 +42,11 @@ export function RankIcon({ rank, size = 38 }: { rank: string | null | undefined;
       height={size}
       alt={`${tier} rank`}
       title={tier}
+      onError={(event) => {
+        if (fallback && event.currentTarget.src !== fallback) {
+          event.currentTarget.src = fallback;
+        }
+      }}
       style={{
         display: 'block',
         flex: '0 0 auto',
