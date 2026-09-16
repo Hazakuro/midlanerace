@@ -312,25 +312,28 @@ export async function getOpggPlayer(
     parseEmbeddedData(html);
 
   if (!stats) {
-    /*
-     * Check if OP.GG explicitly says the account is unranked.
-     */
-    const text = normalizeText(stripHtml(html));
+  const text = normalizeText(stripHtml(html));
 
-    if (/\bUnranked\b/i.test(text)) {
-      return {
-        riotId,
-        region,
-        rank: 'Unranked',
-        lp: 0,
-        wins: 0,
-        losses: 0,
-        peakLp: 0,
-      };
-    }
+  console.log(`OP.GG DEBUG ${riotId}`);
+  console.log(`HTML length: ${html.length}`);
+  console.log(`Final URL: ${url}`);
 
-    throw new Error('OP.GG rank data not found');
+  const lpIndex = text.search(/\bLP\b/i);
+
+  if (lpIndex >= 0) {
+    console.log(
+      `TEXT AROUND LP: ${text.slice(
+        Math.max(0, lpIndex - 500),
+        Math.min(text.length, lpIndex + 500)
+      )}`
+    );
+  } else {
+    console.log('OP.GG DEBUG: LP not found');
+    console.log(`TEXT START: ${text.slice(0, 1000)}`);
   }
+
+  throw new Error('OP.GG rank data not found');
+}
 
   return {
     riotId,
