@@ -20,9 +20,9 @@ const players = [
 async function main() {
   const race = await db.race.upsert({
     where: { slug: 'MLG' },
-    update: { region: 'EUW1', status: RaceStatus.LIVE },
+    update: { name: 'MIDLANE ARENA PRIME RACE', region: 'EUW1', status: RaceStatus.LIVE },
     create: {
-      name: 'MLG', slug: 'MLG', region: 'EUW1',
+      name: 'MIDLANE ARENA PRIME RACE', slug: 'MLG', region: 'EUW1',
       startsAt: new Date(),
       endsAt: new Date(Date.now() + 7 * 86400000),
       status: RaceStatus.LIVE,
@@ -63,7 +63,7 @@ async function main() {
     }
   }
 
-  console.log(`MLG ready: ${players.length} participants`);
+  console.log(`MIDLANE ARENA PRIME RACE ready: ${players.length} participants`);
 }
 
 main().catch((e) => { console.error(e); process.exit(1); }).finally(() => db.$disconnect());
