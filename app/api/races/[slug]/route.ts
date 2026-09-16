@@ -3,14 +3,37 @@ import {db} from '@/lib/db';
 import {sortPlayersByRank,getTotalMatches} from '@/lib/rank';
 export const dynamic='force-dynamic';
 
+const displayNames:Record<string,string>={
+ 'Leclerс#Charl':'topazik',
+ 'Last Dance#slway':'Solway',
+ '300games50k#zxz':'Akaven',
+ 'uwutekk7#1314':'Disaster',
+ 'Spasibo Vadim#111':'shusuna',
+ 'babycyberia#nya':'c_y_b_e_r_i_a',
+ 'seIf harm#sx7':'Leha',
+ 'cute kuromi#333':'Latif',
+ 'mid#11s':'Dieyatos',
+ 'Do not have#water':'requiemofmys0ul',
+ 'Tоmioka#DEMON':'Hazakuro',
+};
+
 export async function GET(_:Request,{params}:{params:Promise<{slug:string}>}){
  const {slug}=await params;
  try{
   const race=await db.race.findUnique({where:{slug},include:{participants:{include:{player:true}},matches:{include:{players:{include:{player:true}}},orderBy:{gameStart:'desc'},take:30},positionSnapshots:{include:{player:true},orderBy:{recordedAt:'desc'},take:400}}});
   if(!race)return NextResponse.json({error:'Race not found'},{status:404});
 
+  const cutoff=new Date(Date.now()-24*60*60*1000);
+  const snapshots24=await db.lpSnapshot.findMany({where:{raceId:race.id,recordedAt:{lte:cutoff}},orderBy:{recordedAt:'desc'},take:500});
+  const previousLp24h=new Map<string,number>();
+  for(const s of snapshots24)if(!previousLp24h.has(s.playerId))previousLp24h.set(s.playerId,s.lp);
+
   const sortedPlayers=sortPlayersByRank(race.participants.map(p=>p.player));
-  const players=sortedPlayers.map((p,i)=>({position:i+1,riotId:p.riotId,region:p.region,rank:p.rank||'Unranked',lp:p.lp,wins:p.wins,losses:p.losses,totalMatches:getTotalMatches(p),peakLp:p.peakLp,winrate:p.wins+p.losses?Math.round(p.wins/(p.wins+p.losses)*100):0,lpPerGame:getTotalMatches(p)?Math.round((p.lp/getTotalMatches(p))*10)/10:0,updatedAt:p.updatedAt}));
+  const players=sortedPlayers.map((p,i)=>{
+   const totalMatches=getTotalMatches(p);
+   const previousLp=previousLp24h.get(p.id);
+   return {position:i+1,riotId:p.riotId,displayName:displayNames[p.riotId]||p.riotId,region:p.region,rank:p.rank||'Unranked',lp:p.lp,lp24h:previousLp===undefined?null:p.lp-previousLp,wins:p.wins,losses:p.losses,totalMatches,peakLp:p.peakLp,winrate:p.wins+p.losses?Math.round(p.wins/(p.wins+p.losses)*100):0,lpPerGame:totalMatches?Math.round((p.lp/totalMatches)*10)/10:0,updatedAt:p.updatedAt};
+  });
 
   const historyByPlayer:Record<string,{lp:number;rank:string|null;position:number;recordedAt:string}[]>= {};
   for(const s of race.positionSnapshots){const list=historyByPlayer[s.playerId]||(historyByPlayer[s.playerId]=[]);if(list.length<30)list.push({lp:s.lp,rank:s.player.rank,position:s.position,recordedAt:s.recordedAt.toISOString()});}
