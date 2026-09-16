@@ -76,10 +76,19 @@ function findProfilePage(value: unknown): any | null {
   return null;
 }
 
+function parseRecord(text: string): {wins:number;losses:number} {
+  const record =
+    text.match(/\bwith\s+(\d+)\s+wins?,\s*(\d+)\s+losses?\b/i) ||
+    text.match(/\b(\d+)W\s+(\d+)L\b/i) ||
+    text.match(/\b(\d+)\s*W\s+(\d+)\s*L\b/i);
+
+  return record ? {wins:Number(record[1]),losses:Number(record[2])} : {wins:0,losses:0};
+}
+
 /**
  * Парсит описание/текст OP.GG.
- * Поддерживает как старый формат "with 80 wins, 47 losses",
- * так и новый видимый формат OP.GG "80W 47L".
+ * Поддерживает старый формат "with 80 wins, 47 losses"
+ * и новый видимый формат OP.GG "99W 57L".
  */
 function parseProfileDescription(description: string): ParsedStats | null {
   const text = decodeHtml(description);
@@ -96,17 +105,9 @@ function parseProfileDescription(description: string): ParsedStats | null {
     const tier = capitalize(normalMatch[1]);
     const division = normalMatch[2];
     const lp = Number(normalMatch[4]);
+    const record = parseRecord(text);
 
-    const record =
-      text.match(/\bwith\s+(\d+)\s+wins?,\s*(\d+)\s+losses?\b/i) ||
-      text.match(/\b(\d+)W\s+(\d+)L\b/i);
-
-    return {
-      rank: `${tier} ${division}`,
-      lp,
-      wins: record ? Number(record[1]) : 0,
-      losses: record ? Number(record[2]) : 0,
-    };
+    return {rank:`${tier} ${division}`,lp,wins:record.wins,losses:record.losses};
   }
 
   const highMatch = text.match(highRankRegex);
@@ -114,26 +115,13 @@ function parseProfileDescription(description: string): ParsedStats | null {
   if (highMatch) {
     const rank = capitalize(highMatch[1]);
     const lp = Number(highMatch[2]);
+    const record = parseRecord(text);
 
-    const record =
-      text.match(/\bwith\s+(\d+)\s+wins?,\s*(\d+)\s+losses?\b/i) ||
-      text.match(/\b(\d+)W\s+(\d+)L\b/i);
-
-    return {
-      rank,
-      lp,
-      wins: record ? Number(record[1]) : 0,
-      losses: record ? Number(record[2]) : 0,
-    };
+    return {rank,lp,wins:record.wins,losses:record.losses};
   }
 
   if (/\bcurrent\s+SOLORANKED\s+rank\s+is\s+unranked\b/i.test(text)) {
-    return {
-      rank: 'Unranked',
-      lp: 0,
-      wins: 0,
-      losses: 0,
-    };
+    return {rank:'Unranked',lp:0,wins:0,losses:0};
   }
 
   return null;
