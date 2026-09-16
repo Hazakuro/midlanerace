@@ -18,13 +18,16 @@ const players = [
 ];
 
 async function main() {
+  const now = new Date();
+  const seasonEnd = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+
   const race = await db.race.upsert({
     where: { slug: 'MLG' },
-    update: { name: 'MIDLANE ARENA PRIME RACE', region: 'EUW1', status: RaceStatus.LIVE },
+    update: { name: 'MIDLANE ARENA PRIME RACE', region: 'EUW1', status: RaceStatus.LIVE, endsAt: seasonEnd },
     create: {
       name: 'MIDLANE ARENA PRIME RACE', slug: 'MLG', region: 'EUW1',
       startsAt: new Date(),
-      endsAt: new Date(Date.now() + 7 * 86400000),
+      endsAt: seasonEnd,
       status: RaceStatus.LIVE,
     },
   });
