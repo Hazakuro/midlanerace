@@ -1,0 +1,4 @@
+import {NextResponse} from 'next/server';
+import {db} from '@/lib/db';
+export const dynamic='force-dynamic';
+export async function GET(req:Request){const slug=new URL(req.url).searchParams.get('race')||'MLG';try{const race=await db.race.findUnique({where:{slug},include:{participants:{include:{player:true}}}});if(!race)return NextResponse.json({error:'Race not found'},{status:404});const players=race.participants.map(x=>x.player).sort((a,b)=>b.lp-a.lp).map((p,i)=>({position:i+1,riotId:p.riotId,region:p.region,rank:p.rank,lp:p.lp,wins:p.wins,losses:p.losses,peakLp:p.peakLp,winrate:p.wins+p.losses?Math.round(p.wins/(p.wins+p.losses)*100):0}));return NextResponse.json({race:{name:race.name,slug:race.slug,status:race.status},players});}catch(e){return NextResponse.json({error:e instanceof Error?e.message:'Database unavailable'},{status:503})}}

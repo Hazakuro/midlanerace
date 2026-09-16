@@ -1,0 +1,2 @@
+import Link from 'next/link';
+export default function Home(){return <main className="wrap"><div className="nav"><div className="brand">RACEHUB</div><span className="pill">LoL RACE TRACKER</span></div><section className="hero"><div className="eyebrow">LIVE COMPETITIVE TRACKING</div><h1>RaceHub</h1><p className="muted">Отслеживание гонок по LP, позициям и матчам.</p><div className="homeActions"><Link className="btn primary" href="/races/MLG">Открыть MLG</Link><Link className="btn" href="/api/health">Health</Link></div></section></main>}
