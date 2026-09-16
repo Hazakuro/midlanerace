@@ -14,6 +14,7 @@ const TIER_ORDER: Record<RankTier, number> = {
   Challenger: 9,
 };
 
+// Within Iron through Diamond: IV < III < II < I.
 const DIVISION_ORDER: Record<string, number> = { IV: 1, III: 2, II: 3, I: 4 };
 
 export function getRankTier(rank: string | null | undefined): RankTier {
@@ -27,14 +28,20 @@ export function getRankTier(rank: string | null | undefined): RankTier {
 export function getRankScore(rank: string | null | undefined, lp = 0): number {
   const tier = getRankTier(rank);
   if (tier === 'Unranked') return -1;
+
   const base = TIER_ORDER[tier];
 
+  // Master+ has no divisions, so LP is the only progression inside the tier.
   if (base >= TIER_ORDER.Master) {
     return base * 100000 + Math.max(0, Number(lp) || 0);
   }
 
+  // Iron -> Diamond: IV, III, II, I, then the next tier.
   const divisionMatch = String(rank || '').match(/\b(IV|III|II|I)\b/i);
-  const division = divisionMatch ? DIVISION_ORDER[divisionMatch[1].toUpperCase()] || 0 : 0;
+  const division = divisionMatch
+    ? DIVISION_ORDER[divisionMatch[1].toUpperCase()] || 0
+    : 0;
+
   return base * 100000 + division * 1000 + Math.max(0, Number(lp) || 0);
 }
 
