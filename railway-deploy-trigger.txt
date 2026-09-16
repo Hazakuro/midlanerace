@@ -1,0 +1,3 @@
+Railway deployment trigger: refresh deployment from GitHub main.
+
+This file can be removed after Railway picks up the latest main revision.
