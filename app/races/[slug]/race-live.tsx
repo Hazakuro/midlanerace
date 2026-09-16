@@ -12,14 +12,14 @@ export default function RaceLive({slug}:{slug:string}){
  return <main className="wrap leaderboardPage">
   {loading&&!data?<div className="card">Загрузка leaderboard…</div>:error?<div className="card error">{error}</div>:<>
    <header className="leaderboardHeader heroHeader">
-    <div className="heroSide heroYasuo" aria-hidden="true"><div className="championGlow"/><div className="championSilhouette">⚔</div><span>YASUO</span></div>
-    <div className="heroTitle"><div className="eyebrow">LEAGUE OF LEGENDS · EUW</div><h1>Midlane Arena</h1><p className="muted">Leaderboard · автообновление раз в час</p></div>
-    <div className="heroSide heroYone" aria-hidden="true"><div className="championGlow"/><div className="championSilhouette">◈</div><span>YONE</span></div>
+    <div className="inkBlade inkBladeLeft" aria-hidden="true"/><div className="inkBlade inkBladeRight" aria-hidden="true"/>
+    <div className="spiritOrb spiritOrbBlue" aria-hidden="true"/><div className="spiritOrb spiritOrbRed" aria-hidden="true"/>
+    <div className="heroTitle"><div className="eyebrow">LEAGUE OF LEGENDS · EUW</div><h1>Midlane Arena</h1><div className="heroDivider"><i/><span>✦</span><i/></div><p className="muted">PRIME RACE · RANKED SOLO/DUO</p></div>
    </header>
    <div className="stats"><div><span>Участники</span><b>{data.players.length}</b></div><div><span>Лидер</span><b>{data.players[0]?`${data.players[0].rank} · ${data.players[0].lp} LP`:'—'}</b></div><div><span>Всего матчей</span><b>{data.players.reduce((a:number,p:any)=>a+p.totalMatches,0)}</b></div><div><span>Обновлено</span><b>{lastUpdate?new Date(lastUpdate).toLocaleTimeString('ru-RU'):'—'}</b></div></div>
    <section className="card tableCard">
     <div className="tableTitle"><div><b>LEADERBOARD</b><span className="muted leaderboardSub">RANKED SOLO/DUO</span></div><span className="muted">по рангу и LP</span></div>
-    <div className="tableWrap"><table><thead><tr><th>#</th><th>Игрок</th><th>Ранг</th><th>LP</th><th>W/L</th><th>Матчи</th><th>WR</th><th>Peak</th></tr></thead><tbody>{data.players.map((p:any)=><tr key={p.riotId} className={p.position<=3?`topRow prize-${p.position}`:''}><td className="pos">{placeBadge(p.position)}</td><td><a className="playerLink" href={opggUrl(p.riotId)} target="_blank" rel="noreferrer">{p.riotId}</a><small>{p.region}</small></td><td><div className="rankCell"><RankIcon rank={p.rank} size={152}/><span>{p.rank}</span></div></td><td><strong>{p.lp}</strong></td><td>{p.wins} / {p.losses}</td><td><strong>{p.totalMatches}</strong></td><td>{p.winrate}%</td><td>{p.peakLp}</td></tr>)}</tbody></table></div>
+    <div className="tableWrap"><table><thead><tr><th>#</th><th>Игрок</th><th>Ранг</th><th>LP</th><th>W/L</th><th>Матчи</th><th>WR</th><th>Peak</th></tr></thead><tbody>{data.players.map((p:any)=><tr key={p.riotId} className={p.position<=3?`topRow prize-${p.position}`:''}><td className="pos">{placeBadge(p.position)}</td><td><a className="playerLink" href={opggUrl(p.riotId)} target="_blank" rel="noreferrer">{p.riotId}</a><small>{p.region}</small></td><td><div className="rankCell"><RankIcon rank={p.rank} size={64}/><span>{p.rank}</span></div></td><td><strong>{p.lp}</strong></td><td>{p.wins} / {p.losses}</td><td><strong>{p.totalMatches}</strong></td><td>{p.winrate}%</td><td>{p.peakLp}</td></tr>)}</tbody></table></div>
    </section>
    <footer className="siteFooter">Сделано благодаря упорному труду <strong>Hazakuro</strong></footer>
   </>}
