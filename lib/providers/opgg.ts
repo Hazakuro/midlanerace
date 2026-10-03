@@ -138,45 +138,84 @@ function capitalize(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
 }
 
+function extractJsonArrayAfterKey(text: string, key: string): string | null {
+  const keyIndex = text.indexOf(key);
+  if (keyIndex < 0) return null;
+
+  const start = text.indexOf('[', keyIndex + key.length);
+  if (start < 0) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = start; i < text.length; i++) {
+    const char = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (char === '\\') escaped = true;
+      else if (char === '"') inString = false;
+      continue;
+    }
+    if (char === '"') { inString = true; continue; }
+    if (char === '[') depth++;
+    if (char === ']') {
+      depth--;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
 function parseCurrentSoloRankedData(html: string): ParsedStats | null {
   const text = decodeHtml(html);
 
-  // OP.GG exposes current queues in league_stats. Select SOLORANKED first;
-  // a generic tier/lp search can otherwise hit historical/top-tier data.
-  const queueRegex = /"game_type"\s*:\s*"SOLORANKED"([\s\S]{0,3000}?)(?="game_type"\s*:\s*"|$)/gi;
-  let queueMatch: RegExpExecArray | null;
+  const leagueStatsJson = extractJsonArrayAfterKey(text, '"league_stats"');
+  if (leagueStatsJson) {
+    try {
+      const leagueStats = JSON.parse(leagueStatsJson) as Array<Record<string, any>>;
+      const solo = leagueStats.find(item => String(item?.game_type || '').toUpperCase() === 'SOLORANKED');
 
+      if (solo?.tier_info) {
+        const tier = capitalize(String(solo.tier_info.tier || ''));
+        const division = solo.tier_info.division == null ? '' : String(solo.tier_info.division);
+        const lp = Number(solo.tier_info.lp);
+
+        if (tier && Number.isFinite(lp)) {
+          const rank = ['Master', 'Grandmaster', 'Challenger'].includes(tier)
+            ? tier
+            : division ? tier + ' ' + division : tier;
+          const wins = Number(solo.win);
+          const losses = Number(solo.lose);
+          console.log('OP.GG SOLORANKED JSON:', rank, lp, 'LP', '(' + (Number.isFinite(wins) ? wins : 0) + '/' + (Number.isFinite(losses) ? losses : 0) + ')');
+          return {rank, lp, wins: Number.isFinite(wins) ? wins : 0, losses: Number.isFinite(losses) ? losses : 0};
+        }
+      }
+    } catch {
+      // Continue with regex fallback.
+    }
+  }
+
+  const queueRegex = /"game_type"\s*:\s*"SOLORANKED"([\s\S]{0,5000}?)(?="game_type"\s*:\s*"|$)/gi;
+  let queueMatch: RegExpExecArray | null;
   while ((queueMatch = queueRegex.exec(text)) !== null) {
     const block = queueMatch[1];
-
-    const tierMatch = block.match(
-      /"tier_info"\s*:\s*\{[\s\S]{0,700}?"tier"\s*:\s*"?(IRON|BRONZE|SILVER|GOLD|PLATINUM|EMERALD|DIAMOND|MASTER|GRANDMASTER|CHALLENGER)"?[\s\S]{0,300}?(?:"division"\s*:\s*"?(\d+)"?)?[\s\S]{0,300}?"lp"\s*:\s*(\d+)/i
-    );
-
+    const tierMatch = block.match(/"tier_info"\s*:\s*\{[\s\S]{0,1200}?"tier"\s*:\s*"?(IRON|BRONZE|SILVER|GOLD|PLATINUM|EMERALD|DIAMOND|MASTER|GRANDMASTER|CHALLENGER)"?[\s\S]{0,600}?(?:"division"\s*:\s*"?(\d+)"?)?[\s\S]{0,600}?"lp"\s*:\s*(\d+)/i);
     if (!tierMatch) continue;
-
     const tier = capitalize(tierMatch[1]);
     const division = tierMatch[2];
     const lp = Number(tierMatch[3]);
-
     const winMatch = block.match(/"win"\s*:\s*(\d+)/i);
     const loseMatch = block.match(/"lose"\s*:\s*(\d+)/i);
-
     return {
-      rank: ['Master', 'Grandmaster', 'Challenger'].includes(tier)
-        ? tier
-        : division
-          ? tier + ' ' + division
-          : tier,
+      rank: ['Master', 'Grandmaster', 'Challenger'].includes(tier) ? tier : division ? tier + ' ' + division : tier,
       lp,
       wins: winMatch ? Number(winMatch[1]) : 0,
       losses: loseMatch ? Number(loseMatch[1]) : 0,
     };
   }
-
   return null;
 }
-
 function parseStructuredRankData(html: string): ParsedStats | null {
   // OP.GG also embeds the ranked data as structured JSON.
   // This fallback is intentionally independent from the visible page text,
