@@ -249,6 +249,12 @@ function parseStructuredRankData(html: string): ParsedStats | null {
 }
 
 function parseOpggHtml(html: string): ParsedStats | null {
+  // IMPORTANT: OP.GG's ProfilePage JSON-LD can contain a stale/secondary
+  // rank description (for example Top tier). The live league_stats block
+  // is the source of truth for Ranked Solo/Duo, so it must be checked first.
+  const currentSolo = parseCurrentSoloRankedData(html);
+  if (currentSolo) return currentSolo;
+
   const jsonLdBlocks = extractJsonLd(html);
 
   for (const block of jsonLdBlocks) {
@@ -263,9 +269,6 @@ function parseOpggHtml(html: string): ParsedStats | null {
     const parsed = parseProfileDescription(description);
     if (parsed) return parsed;
   }
-
-  const currentSolo = parseCurrentSoloRankedData(html);
-  if (currentSolo) return currentSolo;
 
   const structured = parseStructuredRankData(html);
   if (structured) return structured;
