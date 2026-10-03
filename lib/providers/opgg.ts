@@ -66,7 +66,13 @@ function findProfilePage(value: unknown): any | null {
   }
 
   const object = value as Record<string, unknown>;
-  if (object['@type'] === 'ProfilePage') return object;
+  const type = object['@type'];
+  if (
+    type === 'ProfilePage' ||
+    (Array.isArray(type) && type.some(item => String(item).toLowerCase() === 'profilepage'))
+  ) {
+    return object;
+  }
 
   for (const child of Object.values(object)) {
     const found = findProfilePage(child);
@@ -223,7 +229,8 @@ function regionCode(region: string): string {
 }
 
 async function fetchOpggPage(url: string): Promise<string> {
-  const response = await fetch(url, {
+  const requestUrl = `${url}?refresh=${Date.now()}`;
+  const response = await fetch(requestUrl, {
     method: 'GET',
     headers: {
       'User-Agent':
@@ -242,7 +249,12 @@ async function fetchOpggPage(url: string): Promise<string> {
     throw new Error(`OP.GG ${response.status}`);
   }
 
-  return response.text();
+  const html = await response.text();
+  if (!html.trim()) {
+    throw new Error('OP.GG returned an empty page');
+  }
+
+  return html;
 }
 
 export async function getOpggPlayer(
