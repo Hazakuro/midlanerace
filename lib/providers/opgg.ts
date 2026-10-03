@@ -138,6 +138,45 @@ function capitalize(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
 }
 
+function parseCurrentSoloRankedData(html: string): ParsedStats | null {
+  const text = decodeHtml(html);
+
+  // OP.GG exposes current queues in league_stats. Select SOLORANKED first;
+  // a generic tier/lp search can otherwise hit historical/top-tier data.
+  const queueRegex = /"game_type"\s*:\s*"SOLORANKED"([\s\S]{0,3000}?)(?="game_type"\s*:\s*"|$)/gi;
+  let queueMatch: RegExpExecArray | null;
+
+  while ((queueMatch = queueRegex.exec(text)) !== null) {
+    const block = queueMatch[1];
+
+    const tierMatch = block.match(
+      /"tier_info"\s*:\s*\{[\s\S]{0,700}?"tier"\s*:\s*"?(IRON|BRONZE|SILVER|GOLD|PLATINUM|EMERALD|DIAMOND|MASTER|GRANDMASTER|CHALLENGER)"?[\s\S]{0,300}?(?:"division"\s*:\s*"?(\\d+)"?)?[\s\S]{0,300}?"lp"\s*:\s*(\d+)/i
+    );
+
+    if (!tierMatch) continue;
+
+    const tier = capitalize(tierMatch[1]);
+    const division = tierMatch[2];
+    const lp = Number(tierMatch[3]);
+
+    const winMatch = block.match(/"win"\s*:\s*(\d+)/i);
+    const loseMatch = block.match(/"lose"\s*:\s*(\d+)/i);
+
+    return {
+      rank: ['Master', 'Grandmaster', 'Challenger'].includes(tier)
+        ? tier
+        : division
+          ? tier + ' ' + division
+          : tier,
+      lp,
+      wins: winMatch ? Number(winMatch[1]) : 0,
+      losses: loseMatch ? Number(loseMatch[1]) : 0,
+    };
+  }
+
+  return null;
+}
+
 function parseStructuredRankData(html: string): ParsedStats | null {
   // OP.GG also embeds the ranked data as structured JSON.
   // This fallback is intentionally independent from the visible page text,
@@ -225,6 +264,9 @@ function parseOpggHtml(html: string): ParsedStats | null {
     if (parsed) return parsed;
   }
 
+  const currentSolo = parseCurrentSoloRankedData(html);
+  if (currentSolo) return currentSolo;
+
   const structured = parseStructuredRankData(html);
   if (structured) return structured;
 
@@ -304,7 +346,7 @@ function regionCode(region: string): string {
 }
 
 async function fetchOpggPage(url: string): Promise<string> {
-  const requestUrl = `${url}?refresh=${Date.now()}`;
+  const requestUrl = `${url}?queue_type=SOLORANKED&refresh=${Date.now()}`;
   const response = await fetch(requestUrl, {
     method: 'GET',
     headers: {
