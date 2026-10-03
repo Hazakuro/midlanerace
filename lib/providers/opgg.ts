@@ -150,7 +150,7 @@ function parseCurrentSoloRankedData(html: string): ParsedStats | null {
     const block = queueMatch[1];
 
     const tierMatch = block.match(
-      /"tier_info"\s*:\s*\{[\s\S]{0,700}?"tier"\s*:\s*"?(IRON|BRONZE|SILVER|GOLD|PLATINUM|EMERALD|DIAMOND|MASTER|GRANDMASTER|CHALLENGER)"?[\s\S]{0,300}?(?:"division"\s*:\s*"?(\\d+)"?)?[\s\S]{0,300}?"lp"\s*:\s*(\d+)/i
+      /"tier_info"\s*:\s*\{[\s\S]{0,700}?"tier"\s*:\s*"?(IRON|BRONZE|SILVER|GOLD|PLATINUM|EMERALD|DIAMOND|MASTER|GRANDMASTER|CHALLENGER)"?[\s\S]{0,300}?(?:"division"\s*:\s*"?(\d+)"?)?[\s\S]{0,300}?"lp"\s*:\s*(\d+)/i
     );
 
     if (!tierMatch) continue;
