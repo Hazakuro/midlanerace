@@ -289,9 +289,25 @@ function parseStructuredRankData(html: string): ParsedStats | null {
 }
 
 function parseOpggHtml(html: string): ParsedStats | null {
-  // IMPORTANT: OP.GG's ProfilePage JSON-LD can contain a stale/secondary
-  // rank description (for example Top tier). The live league_stats block
-  // is the source of truth for Ranked Solo/Duo, so it must be checked first.
+  const decoded = decodeHtml(html);
+
+  // OP.GG's visible Ranked Solo/Duo block contains the live value.
+  // JSON-LD can lag behind and may contain a stale/secondary tier
+  // (for example "Top tier"), so parse visible ranked text first.
+  const visibleText = decoded
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const visibleStats = parseProfileDescription(visibleText);
+  if (visibleStats) {
+    return {...visibleStats, source: 'visible-text'};
+  }
+
+  // Embedded league_stats remains a fallback for pages where the ranked
+  // block is not present in the rendered HTML.
   const currentSolo = parseCurrentSoloRankedData(html);
   if (currentSolo) return currentSolo;
 
@@ -307,13 +323,11 @@ function parseOpggHtml(html: string): ParsedStats | null {
     if (!description) continue;
 
     const parsed = parseProfileDescription(description);
-    if (parsed) return parsed;
+    if (parsed) return {...parsed, source: 'json-ld'};
   }
 
   const structured = parseStructuredRankData(html);
-  if (structured) return structured;
-
-  const decoded = decodeHtml(html);
+  if (structured) return {...structured, source: structured.source || 'structured'};
 
   const descriptionMatch = decoded.match(
     /"description"\s*:\s*"([^"]*current[^"]*SOLORANKED[^"]*)"/i
@@ -321,17 +335,10 @@ function parseOpggHtml(html: string): ParsedStats | null {
 
   if (descriptionMatch) {
     const parsed = parseProfileDescription(descriptionMatch[1]);
-    if (parsed) return parsed;
+    if (parsed) return {...parsed, source: 'embedded-description'};
   }
 
-  const text = decoded
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  return parseProfileDescription(text);
+  return null;
 }
 
 function buildSlug(riotId: string): string {
