@@ -13,6 +13,7 @@ type ParsedStats = {
   lp: number;
   wins: number;
   losses: number;
+  source?: string;
 };
 
 function decodeHtml(input: string): string {
@@ -188,7 +189,7 @@ function parseCurrentSoloRankedData(html: string): ParsedStats | null {
           const wins = Number(solo.win);
           const losses = Number(solo.lose);
           console.log('OP.GG SOLORANKED JSON:', rank, lp, 'LP', '(' + (Number.isFinite(wins) ? wins : 0) + '/' + (Number.isFinite(losses) ? losses : 0) + ')');
-          return {rank, lp, wins: Number.isFinite(wins) ? wins : 0, losses: Number.isFinite(losses) ? losses : 0};
+          return {rank, lp, wins: Number.isFinite(wins) ? wins : 0, losses: Number.isFinite(losses) ? losses : 0, source: 'league_stats'};
         }
       }
     } catch {
@@ -434,7 +435,7 @@ export async function getOpggPlayer(
   }
 
   console.log(
-    `OP.GG parsed ${riotId}: ${stats.rank} ${stats.lp} LP (${stats.wins}/${stats.losses})`
+    `OP.GG parsed ${riotId}: ${stats.rank} ${stats.lp} LP (${stats.wins}/${stats.losses}) source=${stats.source || 'unknown'}`
   );
 
   return {
