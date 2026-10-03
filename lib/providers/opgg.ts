@@ -28,6 +28,7 @@ function decodeHtml(input: string): string {
     .replace(/\\u003D/g, '=')
     .replace(/\\u0022/g, '"')
     .replace(/\\u0027/g, "'")
+    .replace(/\\\"/g, '"')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -137,6 +138,77 @@ function capitalize(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
 }
 
+function parseStructuredRankData(html: string): ParsedStats | null {
+  // OP.GG also embeds the ranked data as structured JSON.
+  // This fallback is intentionally independent from the visible page text,
+  // because OP.GG can change the ProfilePage description format.
+  const text = decodeHtml(html);
+
+  const tierNames = '(Iron|Bronze|Silver|Gold|Platinum|Emerald|Diamond|Master|Grandmaster|Challenger)';
+
+  const patterns = [
+    new RegExp(
+      `"tier"\\s*:\\s*"${tierNames}"[\\s\\S]{0,220}?"division"\\s*:\\s*(?:\"([1-4])\"|(1|2|3|4))[\\s\\S]{0,220}?"lp"\\s*:\\s*(\\d+)`,
+      'i'
+    ),
+    new RegExp(
+      `"tier"\\s*:\\s*"${tierNames}"[\\s\\S]{0,220}?"lp"\\s*:\\s*(\\d+)`,
+      'i'
+    ),
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (!match) continue;
+
+    const tier = capitalize(match[1]);
+    const division = match[2] || match[3];
+    const lp = Number(match[4] || match[2]);
+
+    if (['Master', 'Grandmaster', 'Challenger'].includes(tier)) {
+      const recordMatch = text.match(/"win"\\s*:\\s*(\\d+)[\\s\\S]{0,120}?"lose"\\s*:\\s*(\\d+)/i);
+      return {
+        rank: tier,
+        lp,
+        wins: recordMatch ? Number(recordMatch[1]) : 0,
+        losses: recordMatch ? Number(recordMatch[2]) : 0,
+      };
+    }
+
+    if (division) {
+      const recordMatch = text.match(/"win"\\s*:\\s*(\\d+)[\\s\\S]{0,120}?"lose"\\s*:\\s*(\\d+)/i);
+      return {
+        rank: `${tier} ${division}`,
+        lp,
+        wins: recordMatch ? Number(recordMatch[1]) : 0,
+        losses: recordMatch ? Number(recordMatch[2]) : 0,
+      };
+    }
+  }
+
+  // Some OP.GG responses use uppercase enum values and an object close to:
+  // tier: PLATINUM, division: 4, lp: 61.
+  const loose = text.match(
+    /(?:tier["']?\\s*[:=]\\s*["']?)(IRON|BRONZE|SILVER|GOLD|PLATINUM|EMERALD|DIAMOND|MASTER|GRANDMASTER|CHALLENGER)["']?[\\s\\S]{0,260}?(?:division["']?\\s*[:=]\\s*["']?)([1-4])["']?[\\s\\S]{0,260}?(?:lp["']?\\s*[:=]\\s*["']?)(\\d+)/i
+  );
+
+  if (loose) {
+    const tier = capitalize(loose[1]);
+    const division = loose[2];
+    const lp = Number(loose[3]);
+    const recordMatch = text.match(/(?:win|wins)["']?\\s*[:=]\\s*(\\d+)[\\s\\S]{0,120}?(?:lose|losses)["']?\\s*[:=]\\s*(\\d+)/i);
+
+    return {
+      rank: ['Master', 'Grandmaster', 'Challenger'].includes(tier) ? tier : `${tier} ${division}`,
+      lp,
+      wins: recordMatch ? Number(recordMatch[1]) : 0,
+      losses: recordMatch ? Number(recordMatch[2]) : 0,
+    };
+  }
+
+  return null;
+}
+
 function parseOpggHtml(html: string): ParsedStats | null {
   const jsonLdBlocks = extractJsonLd(html);
 
@@ -152,6 +224,9 @@ function parseOpggHtml(html: string): ParsedStats | null {
     const parsed = parseProfileDescription(description);
     if (parsed) return parsed;
   }
+
+  const structured = parseStructuredRankData(html);
+  if (structured) return structured;
 
   const decoded = decodeHtml(html);
 
