@@ -105,7 +105,7 @@ function parseProfileDescription(description: string): ParsedStats | null {
     /\b(Iron|Bronze|Silver|Gold|Platinum|Emerald|Diamond)\s+([1-4])\s+Division\s+([1-4])\s+(\d+)\s*LP\b/i;
 
   const highRankRegex =
-    /\b(Master|Grandmaster|Challenger)\s+(\d+)\s*LP\b/i;
+    /\b(Master|Grandmaster|Challenger)\s+([\d,]+)\s*LP\b/i;
 
   const normalMatch = text.match(normalRankRegex);
 
@@ -122,7 +122,7 @@ function parseProfileDescription(description: string): ParsedStats | null {
 
   if (highMatch) {
     const rank = capitalize(highMatch[1]);
-    const lp = Number(highMatch[2]);
+    const lp = Number(highMatch[2].replace(/,/g, ''));
     const record = parseRecord(text);
 
     return {rank,lp,wins:record.wins,losses:record.losses};
